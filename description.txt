@@ -1,1 +1,1 @@
-A mod for playing multiplayer with players of varying skill levels. Set your own personal difficulty level that doesn't affect other players. Only your stats, like damage dealt and damage taken, are changed.
+A mod for playing multiplayer with players of varying skill levels. Set your own personal difficulty level that doesn't affect other players. Only your own stats, like damage dealt and damage taken, are changed. Other players must still install this mod to avoid players de-synchronizing with the server.
