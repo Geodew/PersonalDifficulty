@@ -1,0 +1,10 @@
+author = Geodew
+version = 0.1.0
+homepage = https://github.com/Geodew/PersonalDifficulty
+displayName = Personal Difficulty
+hideCode = false
+hideResources = false
+includeSource = true
+includePDB = true
+languageVersion = 6
+buildIgnore = *.csproj, *.user, obj\*, bin\*, .vs\*
