@@ -16,15 +16,54 @@ using Terraria.ModLoader.Config;
 using Terraria.ModLoader.Config.UI;
 using Terraria.UI;
 
+//using System.Diagnostics;
+//using PersonalDifficulty.PacketMessages;
 
 namespace PersonalDifficulty
 {
+	// Note: At the time this was written, it was not possible for ModPlayer objects to write to ModConfig objects, so we have a bit of a roundabout way of figuring out if the current settings
+	//       are loaded from a player or not.
 	[Label("Personal Config Menu")]
 	public class PDiffConfigLocal : ModConfig
 	{
 		public override ConfigScope Mode => ConfigScope.ClientSide;
 
+		// "Lead Instance": tModLoader sets this
+		public static PDiffConfigLocal Instance;
+
+		// Most of these types are just for debugging purposes, but we need to be able to identify the Lead Instance and its copies, at least
+		//private enum ConfigCreationTypeEnum
+		//{
+		//	eInvalidCreationType,  // = 0
+		//	eLeadInstance,
+		//	eCopyOfLeadInstance,
+		//	eCopyOfCopyOfLeadInstance,
+		//	eOtherFreshInstance,
+		//	eOtherCopiedInstance
+		//}
+
+		// This bool tells us if this is a fresh instance or was created as a copy of an instance not initialized from player data (at least yet)
+		// I know the guide says not to use static data members, but I think it means public static members. I have a good reason for needing this (see comment above class declaration).
+		private static bool mIsLeadInstanceInitializedFromPlayer = false;
+
+		// I know the guide says not to use static data members, but I think it means public static members. I have a good reason for needing this (see comment above class declaration).
+		//private static bool mInstancesCreated = false;
+		//private static bool mDoesLeadingInstanceExist = false;
+
+		//private ConfigCreationTypeEnum mCreationType
+		//{
+		//	get;
+
+		//	set;
+		//} = ConfigCreationTypeEnum.eInvalidCreationType;
+
+		// The size of this array should be the number of public class members/properties.
+		// All bool variables have a default of `false`, so leaving that as-is is intentional here.
+		//private const uint mNumberOfProperties = 8;
+		//private bool[] mHasBeenSet = new bool[mNumberOfProperties];
+
 		// These are not always used; see accessors below
+		// These don't need defaults, as they should either be initialized by `TryInitializeFromPlayer` or tModLoader calling `set`
 		private float _PlayerPowerScalarPercentage;
 		private float _PlayerDamageDealtScalarPercentage;
 		private float _PlayerDamageTakenScalarPercentage;
@@ -32,10 +71,126 @@ namespace PersonalDifficulty
 		//private float _PlayerKnockbackTakenScalarPercentage;  // Apparently this can't be done
 
 		// These are not always used; see accessors below
+		// These don't need defaults, as they should either be initialized by `TryInitializeFromPlayer` or tModLoader calling `set`
 		private bool _DisableKnockbackOnSelf;
 		private bool _DisableFallDamageOnSelf;
 		private bool _ShowDamageChangesInWeaponTooltip;
 		private bool _ShowKnockbackChangesInWeaponTooltip;
+
+		// Fresh instance constructor
+		//public PDiffConfigLocal()
+		//	: base()
+		//{
+		//	if (!mDoesLeadingInstanceExist)
+		//	{
+		//		Debug.Assert(
+		//			!mInstancesCreated,
+		//			"Logic Error: New non-copy instance created after destroying Lead Instance. Expected mod library unload instead.");
+
+		//		mDoesLeadingInstanceExist = true;
+		//		mCreationType = ConfigCreationTypeEnum.eLeadInstance;
+		//	}
+		//	else
+		//	{
+		//		mCreationType = ConfigCreationTypeEnum.eOtherFreshInstance;
+		//	}
+
+		//	mInstancesCreated = true;
+		//}
+
+		// Copy constructor
+		//public PDiffConfigLocal(PDiffConfigLocal other)
+		//	: base()  // ModConfig doesn't have a copy constructor
+		//{
+		//	// This should copy everything but mCreationType
+
+		//	//zzz Make sure to copy base class stuff so we don't crash
+
+		//	// Use get/set functions, so 'other' will initialize from the player now, if it can and hasn't already
+
+		//	PlayerPowerScalarPercentage = other.PlayerPowerScalarPercentage;
+		//	PlayerDamageDealtScalarPercentage = other.PlayerDamageDealtScalarPercentage;
+		//	PlayerDamageTakenScalarPercentage = other.PlayerDamageTakenScalarPercentage;
+		//	PlayerKnockbackDealtScalarPercentage = other.PlayerKnockbackDealtScalarPercentage;
+		//	//PlayerKnockbackTakenScalarPercentage = other.PlayerKnockbackTakenScalarPercentage;  // Apparently this can't be done
+
+		//	DisableKnockbackOnSelf = other.DisableKnockbackOnSelf;
+		//	DisableFallDamageOnSelf = other.DisableFallDamageOnSelf;
+		//	ShowDamageChangesInWeaponTooltip = other.ShowDamageChangesInWeaponTooltip;
+		//	ShowKnockbackChangesInWeaponTooltip = other.ShowKnockbackChangesInWeaponTooltip;
+
+		//	// 'other' should now have checked if it should be initialized from the player or not
+		//	mIsInitializedFromPlayer = other.mIsInitializedFromPlayer;
+
+		//	if (other.mCreationType == ConfigCreationTypeEnum.eLeadInstance)
+		//	{
+		//		mCreationType = ConfigCreationTypeEnum.eCopyOfLeadInstance;
+		//	}
+		//	else if ((other.mCreationType == ConfigCreationTypeEnum.eCopyOfLeadInstance) || (other.mCreationType == ConfigCreationTypeEnum.eCopyOfCopyOfLeadInstance))
+		//	{
+		//		mCreationType = ConfigCreationTypeEnum.eCopyOfCopyOfLeadInstance;
+		//	}
+		//	else
+		//	{
+		//		mCreationType = ConfigCreationTypeEnum.eOtherCopiedInstance;
+		//	}
+		//}
+
+		//~PDiffConfigLocal()
+		//{
+		//	if (mCreationType == ConfigCreationTypeEnum.eLeadInstance)
+		//	{
+		//		mDoesLeadingInstanceExist = false;
+		//	}
+		//	else
+		//	{
+		//		Debug.Assert(
+		//			mCreationType != ConfigCreationTypeEnum.eInvalidCreationType,
+		//			"Logic Error: Instance not properly initialized.");
+		//	}
+		//}
+
+		//public override ModConfig Clone()
+		//{
+		//	PDiffConfigLocal returnValue = new PDiffConfigLocal();
+
+		//	// This should copy everything but mCreationType
+
+		//	//zzz Make sure to copy base class stuff so we don't crash
+
+		//	// Use get/set functions, so this instance will initialize from the player now, if it can and hasn't already
+
+		//	returnValue.PlayerPowerScalarPercentage = PlayerPowerScalarPercentage;
+		//	returnValue.PlayerDamageDealtScalarPercentage = PlayerDamageDealtScalarPercentage;
+		//	returnValue.PlayerDamageTakenScalarPercentage = PlayerDamageTakenScalarPercentage;
+		//	returnValue.PlayerKnockbackDealtScalarPercentage = PlayerKnockbackDealtScalarPercentage;
+		//	//returnValue.PlayerKnockbackTakenScalarPercentage = PlayerKnockbackTakenScalarPercentage;  // Apparently this can't be done
+
+		//	returnValue.DisableKnockbackOnSelf = DisableKnockbackOnSelf;
+		//	returnValue.DisableFallDamageOnSelf = DisableFallDamageOnSelf;
+		//	returnValue.ShowDamageChangesInWeaponTooltip = ShowDamageChangesInWeaponTooltip;
+		//	returnValue.ShowKnockbackChangesInWeaponTooltip = ShowKnockbackChangesInWeaponTooltip;
+
+		//	// 'other' should now have checked if it should be initialized from the player or not
+		//	returnValue.mIsInitializedFromPlayer = mIsInitializedFromPlayer;
+
+		//	if (mCreationType == ConfigCreationTypeEnum.eLeadInstance)
+		//	{
+		//		returnValue.mCreationType = ConfigCreationTypeEnum.eCopyOfLeadInstance;
+		//	}
+		//	else if ((mCreationType == ConfigCreationTypeEnum.eCopyOfLeadInstance) || (mCreationType == ConfigCreationTypeEnum.eCopyOfCopyOfLeadInstance))
+		//	{
+		//		returnValue.mCreationType = ConfigCreationTypeEnum.eCopyOfCopyOfLeadInstance;
+		//	}
+		//	else
+		//	{
+		//		returnValue.mCreationType = ConfigCreationTypeEnum.eOtherCopiedInstance;
+		//	}
+
+		//	return returnValue;
+
+		//	return base.Clone();
+		//}
 
 		[Header("Main Power Slider\n - Set to 0 to disable all.\n - You can change a setting beyond the slider limits by editing your mod config file manually.\n - All settings are saved by character. Changes from the main menu will be applied only if you then load a character as of yet untouched by this mod.")]
 		[Range(-150.0f, 150.0f)]
@@ -47,30 +202,17 @@ namespace PersonalDifficulty
 		{
 			get
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
+				TryInitializeFromPlayer();
 
-					// If this is false, this is being called from within PDiffModPlayer.Load, and we should just give the main menu value
-					if (modPlayer.GetLoadFinished())
-					{
-						return modPlayer.GetPlayerPowerScalarPercentage();
-					}
-				}
 				return _PlayerPowerScalarPercentage;
 			}
 
 			set
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
-
-					modPlayer.SetPlayerPowerScalarPercentage(value);
-				}
 				_PlayerPowerScalarPercentage = value;
+				//mHasBeenSet[0] = true;
+
+				//TryInitializeFromPlayer();
 			}
 		}
 
@@ -81,30 +223,17 @@ namespace PersonalDifficulty
 		{
 			get
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
+				TryInitializeFromPlayer();
 
-					// If this is false, this is being called from within PDiffModPlayer.Load, and we should just give the main menu value
-					if (modPlayer.GetLoadFinished())
-					{
-						return modPlayer.mDisableKnockbackOnSelf;
-					}
-				}
 				return _DisableKnockbackOnSelf;
 			}
 
 			set
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
-
-					modPlayer.mDisableKnockbackOnSelf = value;
-				}
 				_DisableKnockbackOnSelf = value;
+				//mHasBeenSet[1] = true;
+
+				//TryInitializeFromPlayer();
 			}
 		}
 
@@ -115,103 +244,64 @@ namespace PersonalDifficulty
 		{
 			get
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
+				TryInitializeFromPlayer();
 
-					// If this is false, this is being called from within PDiffModPlayer.Load, and we should just give the main menu value
-					if (modPlayer.GetLoadFinished())
-					{
-						return modPlayer.mDisableFallDamageOnSelf;
-					}
-				}
 				return _DisableFallDamageOnSelf;
 			}
 
 			set
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
-
-					modPlayer.mDisableFallDamageOnSelf = value;
-				}
 				_DisableFallDamageOnSelf = value;
+				//mHasBeenSet[2] = true;
+
+				//TryInitializeFromPlayer();
 			}
 		}
 
 		[Header("Fine-Tuning\n - \"Power\" multiplies all these to arrive at the final effect.\n - Set to 0 to disable that specific change.\n - You can change a setting beyond the slider limits by editing your mod config file manually.\n - Note: All settings are saved by character. Changes from the main menu will be applied only if you then load a character as of yet untouched by this mod.")]
 		[Range(0.0f, 200.0f)]
 		[Increment(5.0f)]
-		[DefaultValue(100.0f)]
+		[DefaultValue(75.0f)]
 		[Label("Player Damage Dealt Increase Multiplier %")]
 		[Tooltip("For each 100% of Power Increase, your damage increases by this percent.\n(This also affects negative Power Increases similarly.)\n(Default 100.0)\n\nExamples: If Power Increase is 200.0, and this is set to 50.0, your damage will double.\nIf your Power Increase is -100.0 and this is set to 50.0, your damage will be divided by 1.5.")]
 		public float PlayerDamageDealtScalarPercentage
 		{
 			get
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
+				TryInitializeFromPlayer();
 
-					// If this is false, this is being called from within PDiffModPlayer.Load, and we should just give the main menu value
-					if (modPlayer.GetLoadFinished())
-					{
-						return modPlayer.GetPlayerDamageDealtScalarPercentage();
-					}
-				}
 				return _PlayerDamageDealtScalarPercentage;
 			}
 
 			set
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
-
-					modPlayer.SetPlayerDamageDealtScalarPercentage(value);
-				}
 				_PlayerDamageDealtScalarPercentage = value;
+				//mHasBeenSet[3] = true;
+
+				//TryInitializeFromPlayer();
 			}
 		}
 
 		[Range(0.0f, 200.0f)]
 		[Increment(5.0f)]
-		[DefaultValue(100.0f)]
+		[DefaultValue(85.0f)]
 		[Label("Player Damage Taken Increase Multiplier %")]
 		[Tooltip("For each 100% of Power Increase, the damage you can effectively withstand increases by this percent.\nIncoming damage is lowered to do this; your actual max HP is unchanged.\n(This also affects negative Power Increases similarly.)\n(Default 100.0)\n\nExamples: If Power Increase is 200.0, and this is set to 50.0, damage you take is halved.\nIf your Power Increase is -100.0 and this is set to 50.0, you will take 50% more damage.")]
 		public float PlayerDamageTakenScalarPercentage
 		{
 			get
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
+				TryInitializeFromPlayer();
 
-					// If this is false, this is being called from within PDiffModPlayer.Load, and we should just give the main menu value
-					if (modPlayer.GetLoadFinished())
-					{
-						return modPlayer.GetPlayerDamageTakenScalarPercentage();
-					}
-				}
 				return _PlayerDamageTakenScalarPercentage;
 			}
 
 			set
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
-
-					modPlayer.SetPlayerDamageTakenScalarPercentage(value);
-				}
 				_PlayerDamageTakenScalarPercentage = value;
+				//mHasBeenSet[4] = true;
+
+				//TryInitializeFromPlayer();
 			}
 		}
 
@@ -224,30 +314,17 @@ namespace PersonalDifficulty
 		{
 			get
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
+				TryInitializeFromPlayer();
 
-					// If this is false, this is being called from within PDiffModPlayer.Load, and we should just give the main menu value
-					if (modPlayer.GetLoadFinished())
-					{
-						return modPlayer.GetPlayerKnockbackDealtScalarPercentage();
-					}
-				}
 				return _PlayerKnockbackDealtScalarPercentage;
 			}
 
 			set
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
-
-					modPlayer.SetPlayerKnockbackDealtScalarPercentage(value);
-				}
 				_PlayerKnockbackDealtScalarPercentage = value;
+				//mHasBeenSet[5] = true;
+
+				//TryInitializeFromPlayer();
 			}
 		}
 
@@ -270,30 +347,17 @@ namespace PersonalDifficulty
 		{
 			get
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
+				TryInitializeFromPlayer();
 
-					// If this is false, this is being called from within PDiffModPlayer.Load, and we should just give the main menu value
-					if (modPlayer.GetLoadFinished())
-					{
-						return modPlayer.mShowDamageChangesInWeaponTooltip;
-					}
-				}
 				return _ShowDamageChangesInWeaponTooltip;
 			}
 
 			set
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
-
-					modPlayer.mShowDamageChangesInWeaponTooltip = value;
-				}
 				_ShowDamageChangesInWeaponTooltip = value;
+				//mHasBeenSet[6] = true;
+
+				//TryInitializeFromPlayer();
 			}
 		}
 
@@ -304,51 +368,81 @@ namespace PersonalDifficulty
 		{
 			get
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
+				TryInitializeFromPlayer();
 
-					// If this is false, this is being called from within PDiffModPlayer.Load, and we should just give the main menu value
-					if (modPlayer.GetLoadFinished())
-					{
-						return modPlayer.mShowKnockbackChangesInWeaponTooltip;
-					}
-				}
 				return _ShowKnockbackChangesInWeaponTooltip;
 			}
 
 			set
 			{
-				// Changes might be set at the main menu, with no active player
-				if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
-				{
-					PDiffModPlayer modPlayer = GetMyModPlayer();
-
-					modPlayer.mShowKnockbackChangesInWeaponTooltip = value;
-				}
 				_ShowKnockbackChangesInWeaponTooltip = value;
+				//mHasBeenSet[7] = true;
+
+				//TryInitializeFromPlayer();
 			}
 		}
 
 		public override void OnChanged()
 		{
 			// Changes might be set at the main menu, with no active player
-			if ((!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0))
+			if (IsPlayerActive())
 			{
 				PDiffModPlayer modPlayer = GetMyModPlayer();
 
 				if (modPlayer.GetLoadFinished())
 				{
-					//zzz send update message here for multiplayer
+					modPlayer.UpdatePlayerFromConfigLoad(this);  // This also automatically syncs with other players, if appropriate
 				}
 			}
+		}
+
+		private void TryInitializeFromPlayer()
+		{
+			// Wait until tModLoader has initialized all fields with what it thinks goes there
+			//for (uint i = 0;i < mNumberOfProperties; i++)
+			//{
+			//	if (!mHasBeenSet[i])
+			//	{
+			//		return;
+			//	}
+			//}
+
+			// tModLoader is finished, now override with ModPlayer load data, if available
+			//if ((mCreationType == ConfigCreationTypeEnum.eLeadInstance) || (mCreationType == ConfigCreationTypeEnum.eLeadInstance) || (mCreationType == ConfigCreationTypeEnum.eLeadInstance))
+			//{
+
+			// Changes might be set at the main menu, with no active player
+			if (ReferenceEquals(this, Instance) && !mIsLeadInstanceInitializedFromPlayer && IsPlayerActive())
+			{
+				//Debug.Assert(
+				//	(mCreationType != ConfigCreationTypeEnum.eLeadInstance) && (mCreationType != ConfigCreationTypeEnum.eLeadInstance),
+				//	"Logic Error: Copy of Lead Instance persisted from menu into world load. Expected only Lead Instance persisting.");
+
+				PDiffModPlayer modPlayer = GetMyModPlayer();
+
+				if (modPlayer.GetLoadFinished())
+				{
+					mIsLeadInstanceInitializedFromPlayer = true;  // This goes first to prevent recursion when modPlayer calls `set`
+					modPlayer.UpdateConfigFromPlayerLoad(this);
+				}
+			}
+		}
+
+		// Changes might be set at the main menu, with no active player
+		private bool IsPlayerActive()
+		{
+			return (!Main.gameMenu) && (Main.playerLoaded) && (Main.myPlayer >= 0);
 		}
 
 		private PDiffModPlayer GetMyModPlayer()
 		{
 			Player player = Main.player[Main.myPlayer];
 			return player.GetModPlayer<PDiffModPlayer>();
+		}
+
+		public static void OnPlayerUnload()
+		{
+			mIsLeadInstanceInitializedFromPlayer = false;
 		}
 	}
 }

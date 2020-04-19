@@ -10,7 +10,7 @@ namespace PersonalDifficulty.PacketMessages
 		private const PacketMessageTypeEnum mPacketMessageType = PacketMessageTypeEnum.PLAYER_CONFIG;
 
 		private int mPlayerId;
-		//zzz add version information so we know what classes to expect from the other person and in what order
+		//zzz add version information so we know what variables to expect from the other person and in what order
 
 		private double mPlayerPowerScalar;
 		private double mPlayerDamageDealtScalar;

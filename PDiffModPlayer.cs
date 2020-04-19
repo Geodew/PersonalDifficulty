@@ -49,6 +49,14 @@ namespace PersonalDifficulty
 			{
 			}
 
+			try  // Prevent data loss or failed character save if something goes wrong in here
+			{
+				PDiffConfigLocal.OnPlayerUnload();
+			}
+			catch
+			{
+			}
+
 			return data;
 		}
 
@@ -65,8 +73,6 @@ namespace PersonalDifficulty
 					Load_v0_1_0(tag);
 
 					ErrorCheckLoad();
-
-					//UpdateConfigFromPlayerLoad();  // Not yet a tModLoader feature.
 				}
 				else
 				{
@@ -135,8 +141,6 @@ namespace PersonalDifficulty
 					mShowKnockbackChangesInWeaponTooltip = reader.ReadBoolean();
 
 					ErrorCheckLoad();
-
-					//UpdateConfigFromPlayerLoad();  // Not yet a tModLoader feature.
 				}
 			}
 			catch
@@ -147,13 +151,13 @@ namespace PersonalDifficulty
 		}
 
 		// Not yet a tModLoader feature.
-		//private void UpdateConfigFromPlayerLoad()
-		//{
-		//	// Not yet a tModLoader feature.
-		//	UpdateConfigFromPlayerLoad(ref ModContent.GetInstance<PDiffConfigLocal>());
-		//}
+		private void UpdateConfigFromPlayerLoad()
+		{
+			// Not yet a tModLoader feature.
+			UpdateConfigFromPlayerLoad(ModContent.GetInstance<PDiffConfigLocal>());
+		}
 
-		public void UpdateConfigFromPlayerLoad(ref PDiffConfigLocal config)
+		public void UpdateConfigFromPlayerLoad(PDiffConfigLocal config)
 		{
 			config.PlayerPowerScalarPercentage = GetPlayerPowerScalarPercentage();
 			config.PlayerDamageDealtScalarPercentage = GetPlayerDamageDealtScalarPercentage();
@@ -204,9 +208,11 @@ namespace PersonalDifficulty
 		{
 			try
 			{
-				mPlayerDamageDealtScalar = Math.Max(0.0, mPlayerDamageDealtScalar);
-				mPlayerDamageTakenScalar = Math.Max(0.0, mPlayerDamageTakenScalar);
-				mPlayerKnockbackDealtScalar = Math.Max(0.0, mPlayerKnockbackDealtScalar);
+				//zzz check for NaN and +/- Inf
+				//zzz Ensuring non-zero isn't all that important, actually, let's just check the multipliers below during runtime to make sure they don't make damage negative
+				//mPlayerDamageDealtScalar = Math.Max(0.0, mPlayerDamageDealtScalar);
+				//mPlayerDamageTakenScalar = Math.Max(0.0, mPlayerDamageTakenScalar);
+				//mPlayerKnockbackDealtScalar = Math.Max(0.0, mPlayerKnockbackDealtScalar);
 				//mPlayerKnockbackTakenScalar = Math.Max(0.0, mPlayerKnockbackTakenScalar);  // Apparently this can't be done
 				//zzz Eventually add status effect duration increase/decrease on self
 			}
@@ -219,6 +225,8 @@ namespace PersonalDifficulty
 
 		public override void OnEnterWorld(Player playerIn)
 		{
+			UpdateConfigFromPlayerLoad();  // Not yet a tModLoader feature.
+
 			WelcomeMessage(playerIn);
 
 			base.OnEnterWorld(playerIn);
@@ -246,29 +254,55 @@ namespace PersonalDifficulty
 			base.SyncPlayer(toWho, fromWho, newPlayer);
 		}
 
-		//public override void ResetEffects()
-		//{
-		//	base.ResetEffects();
-		//}
+		public override void ResetEffects()
+		{
+			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			player.noKnockback |= mDisableKnockbackOnSelf;
+			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			base.ResetEffects();
+		}
+
+		public override void PreUpdate()
+		{
+			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			player.noKnockback |= mDisableKnockbackOnSelf;
+			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			base.PreUpdate();
+		}
 
 		// We could edit "player.allDamageMult" etc. here, but other mods may cap (floor or ceiling) that value for difficulty reasons. We need to change it in a way compatible with (circumventing) other mods.
-		//public override void PreUpdateBuffs()
-		//{
-		//	base.PreUpdateBuffs();
-		//}
+		public override void PreUpdateBuffs()
+		{
+			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			player.noKnockback |= mDisableKnockbackOnSelf;
+			player.noFallDmg |= mDisableFallDamageOnSelf;
 
-		//public override void PostUpdateEquips()
-		//{
-		//	base.PostUpdateEquips();
-		//}
+			base.PreUpdateBuffs();
+		}
 
-		//public override void PostUpdateRunSpeeds()
-		//{
-		//	base.PostUpdateRunSpeeds();
-		//}
+		public override void PostUpdateEquips()
+		{
+			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			player.noKnockback |= mDisableKnockbackOnSelf;
+			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			base.PostUpdateEquips();
+		}
+
+		public override void PostUpdateRunSpeeds()
+		{
+			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			player.noKnockback |= mDisableKnockbackOnSelf;
+			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			base.PostUpdateRunSpeeds();
+		}
 
 		public override void PostUpdate()
 		{
+			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
 			player.noKnockback |= mDisableKnockbackOnSelf;
 			player.noFallDmg |= mDisableFallDamageOnSelf;
 
@@ -277,6 +311,10 @@ namespace PersonalDifficulty
 
 		public override bool PreHurt(bool pvp, bool quiet, ref int damage, ref int hitDirection, ref bool crit, ref bool customDamage, ref bool playSound, ref bool genGore, ref PlayerDeathReason damageSource)
 		{
+			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			player.noKnockback |= mDisableKnockbackOnSelf;
+			player.noFallDmg |= mDisableFallDamageOnSelf;
+
 			AdjustDamageTaken(ref damage);
 
 			//AdjustKnockbackTaken(ref knockback);  // Apparently this can't be done
