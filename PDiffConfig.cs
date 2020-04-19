@@ -16,9 +16,6 @@ using Terraria.ModLoader.Config;
 using Terraria.ModLoader.Config.UI;
 using Terraria.UI;
 
-//using System.Diagnostics;
-//using PersonalDifficulty.PacketMessages;
-
 namespace PersonalDifficulty
 {
 	// Note: At the time this was written, it was not possible for ModPlayer objects to write to ModConfig objects, so we have a bit of a roundabout way of figuring out if the current settings
