@@ -1,1 +1,7 @@
-A mod for playing multiplayer with players of varying skill levels. Set your own personal difficulty level that doesn't affect other players. Only your own stats, like damage dealt and damage taken, are changed. Other players must still install this mod to avoid players de-synchronizing with the server. Open Mod Configuration to activate changes (default is no difficulty change). To do that, hit Settings -> Mod Configuration when in a world. (Mod Configuration may not be present right now, but it will show up after you install this mod.)
+A mod for playing multiplayer with players of varying skill levels. It also works in single-player, if you want to make your solo play harder or easier.
+
+Set your own personal difficulty level that doesn't affect other players. Only your own stats, like damage dealt and damage taken, are changed.
+
+Other players must still install this mod to avoid players de-synchronizing with the server.
+
+To begin, open Mod Configuration (default is no difficulty change). To do that, hit Settings -> Mod Configuration when in a world. (Mod Configuration may not be present right now, but it will show up after you install this mod.)
