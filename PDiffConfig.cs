@@ -32,6 +32,7 @@ namespace PersonalDifficulty
 		// I know the guide says not to use static data members, but I think it means public static members. I have a good reason for needing this (see comment above class declaration).
 		private static bool mIsLeadInstanceInitializedFromPlayer = false;
 
+		// v0.1.0
 		// These are not always used; see accessors below
 		// These don't need defaults, as they should either be initialized by `TryInitializeFromPlayer` or tModLoader calling `set`
 		private float _PlayerPowerScalarPercentage;
@@ -39,15 +40,25 @@ namespace PersonalDifficulty
 		private float _PlayerDamageTakenScalarPercentage;
 		private float _PlayerKnockbackDealtScalarPercentage;
 		//private float _PlayerKnockbackTakenScalarPercentage;  // Apparently this can't be done
-
-		// These are not always used; see accessors below
-		// These don't need defaults, as they should either be initialized by `TryInitializeFromPlayer` or tModLoader calling `set`
 		private bool _DisableKnockbackOnSelf;
 		private bool _DisableFallDamageOnSelf;
 		private bool _ShowDamageChangesInWeaponTooltip;
 		private bool _ShowKnockbackChangesInWeaponTooltip;
 
-		[Header("Main Power Slider\n - Set to 0 to disable all.\n - You can change a setting beyond the slider limits by editing your mod config file manually.\n - All settings are saved by character. Changes from the main menu will be applied only if you then load a character as of yet untouched by this mod.")]
+		// v0.2.0
+		private float _EffectiveDamageDealtScalarPercentage;
+		private float _EffectiveDamageTakenScalarPercentage;
+		private float _GlowAmountPercentage;
+		private bool _DisableDrowningForSelf;
+		private bool _DisableLavaDamageOnSelf;
+		private bool _EnableGlow;
+
+
+		// New Feature Comment Tag: Code change goes here (Variable (above))
+		// New Feature Comment Tag: Code change goes here (Property Get/Set (below))
+
+
+		[Header("Main Power Slider\n - Set to 0 to disable all damage/knockback changes.\n - You can change a setting beyond the slider limits by editing your mod config file manually.\n - All settings are saved by character. Changes from the main menu will be applied only if you then load a character as of yet untouched by this mod.")]
 		[Range(-150.0f, 150.0f)]
 		[Increment(5.0f)]
 		[DefaultValue(0.0f)]
@@ -68,9 +79,10 @@ namespace PersonalDifficulty
 			}
 		}
 
+		[Header("Game Mechanic Switches\n - (These settings are independent of the Power slider.)\n - Note that lowering your damage taken using other settings also affects damage taken from these mechanics (and anything else).\n - Careful not to make the game too easy! I recommend you only use these if you're totally fed up.\n(Part of the game is working around these problems, like crafting things to help you avoid them, so you'll miss out on pieces of the gameplay by using these options.)\n - Useful for less-experienced gamers (including, but not limited to, young children) who might die to these repeatedly, to the point where it's annoying, or for playing in a sort of creative or peaceful mode stress-free.")]
 		[DefaultValue(false)]
 		[Label("Disable Knockback on Self")]
-		[Tooltip("This disables knockback on only you.\nTerraria/tModLoader doesn't support knockback resistance on players, so this is the next best thing.\nThis setting is independent of the Power slider.")]
+		[Tooltip("This disables knockback on only you.\nTerraria/tModLoader doesn't support knockback resistance on players, so this is the next best thing.")]
 		public bool DisableKnockbackOnSelf
 		{
 			get
@@ -88,7 +100,7 @@ namespace PersonalDifficulty
 
 		[DefaultValue(false)]
 		[Label("Disable Fall Damage on Self")]
-		[Tooltip("This disables fall damage on only you.\nNote that lowering your damage taken using other settings also affects fall damage,\nbut this is a good last resort to address any remaining frustration.\nThis setting is independent of the Power slider.")]
+		[Tooltip("This disables fall damage on only you.")]
 		public bool DisableFallDamageOnSelf
 		{
 			get
@@ -104,10 +116,85 @@ namespace PersonalDifficulty
 			}
 		}
 
+		[DefaultValue(false)]
+		[Label("Disable Drowning for Self")]
+		[Tooltip("This disables drowning on only you.\n(You gain the ability to breathe both water and air.)")]
+		public bool DisableDrowningForSelf
+		{
+			get
+			{
+				TryInitializeFromPlayer();
+
+				return _DisableDrowningForSelf;
+			}
+
+			set
+			{
+				_DisableDrowningForSelf = value;
+			}
+		}
+
+		[DefaultValue(false)]
+		[Label("Disable Lava Damage on Self")]
+		[Tooltip("This disables lava damage on only you.\nThis also grants immunity to damage from standing on \"hot\" block types (\"Fire-Walking\") and immunity to being set on fire.")]
+		// "Hot block types" to keep it mostly spoiler-free
+		public bool DisableLavaDamageOnSelf
+		{
+			get
+			{
+				TryInitializeFromPlayer();
+
+				return _DisableLavaDamageOnSelf;
+			}
+
+			set
+			{
+				_DisableLavaDamageOnSelf = value;
+			}
+		}
+
+		[DefaultValue(false)]
+		[Label("Enable Constant Glow on Self")]
+		[Tooltip("Makes your character glow at all times. Adjust the brightness with the slider below.\nThis option is intended for players who keep dying because they can't see their enemies in the dark,\ndue to, for example, an accidental fall or being deep in water.")]
+		public bool EnableGlow
+		{
+			get
+			{
+				TryInitializeFromPlayer();
+
+				return _EnableGlow;
+			}
+
+			set
+			{
+				_EnableGlow = value;
+			}
+		}
+
+		[Range(0.0f, 400.0f)]
+		[Increment(10.0f)]
+		[DefaultValue(100.0f)]
+		[Label("Player Glow Strength")]
+		[Tooltip("If Glow is enabled above, this controls how strongly you glow.\nOtherwise, it does nothing.\n0.0 = No glow at all\n100.0 = Glow as brightly as a torch\n200.0 = Glow twice as brightly as a torch\netc.\n\nNote: If you set this really high, the light may appear to lag behind you.\nMost light actually does this; it's just not noticeable unless the light is very bright. (It's not a bug.)")]
+		public float GlowAmountPercentage
+		{
+			get
+			{
+				TryInitializeFromPlayer();
+
+				return _GlowAmountPercentage;
+			}
+
+			set
+			{
+				_GlowAmountPercentage = value;
+			}
+		}
+
 		[Header("Fine-Tuning\n - \"Power\" multiplies all these to arrive at the final effect.\n - Set to 0 to disable that specific change.\n - You can change a setting beyond the slider limits by editing your mod config file manually.\n - Note: All settings are saved by character. Changes from the main menu will be applied only if you then load a character as of yet untouched by this mod.")]
 		[Range(0.0f, 200.0f)]
 		[Increment(5.0f)]
-		[DefaultValue(75.0f)]
+		[DefaultValue(100.0f)]
 		[Label("Player Damage Dealt Increase Multiplier %")]
 		[Tooltip("For each 100% of Power Increase, your damage increases by this percent.\n(This also affects negative Power Increases similarly.)\n(Default 100.0)\n\nExamples: If Power Increase is 200.0, and this is set to 50.0, your damage will double.\nIf your Power Increase is -100.0 and this is set to 50.0, your damage will be divided by 1.5.")]
 		public float PlayerDamageDealtScalarPercentage
@@ -127,8 +214,8 @@ namespace PersonalDifficulty
 
 		[Range(0.0f, 200.0f)]
 		[Increment(5.0f)]
-		[DefaultValue(85.0f)]
-		[Label("Player Damage Taken Increase Multiplier %")]
+		[DefaultValue(100.0f)]
+		[Label("Player Damage Taken Decrease Multiplier %")]
 		[Tooltip("For each 100% of Power Increase, the damage you can effectively withstand increases by this percent.\nIncoming damage is lowered to do this; your actual max HP is unchanged.\n(This also affects negative Power Increases similarly.)\n(Default 100.0)\n\nExamples: If Power Increase is 200.0, and this is set to 50.0, damage you take is halved.\nIf your Power Increase is -100.0 and this is set to 50.0, you will take 50% more damage.")]
 		public float PlayerDamageTakenScalarPercentage
 		{
@@ -162,6 +249,46 @@ namespace PersonalDifficulty
 			set
 			{
 				_PlayerKnockbackDealtScalarPercentage = value;
+			}
+		}
+
+		[Range(0.0f, 100.0f)]
+		[Increment(5.0f)]
+		[DefaultValue(100.0f)]
+		[Label("Effective Damage Dealt Multiplier %")]
+		[Tooltip("This controls whether your damage dealt changes are to your effective damage or your base damage.\n100.0 = Change effective damage.\n0.0 = Change base damage.\nOther = Scale between the two values.\n(Default 100.0)\n\nExamples: Suppose your original base damage is 30, and you hit an enemy with 10 Defense on Normal Mode. That enemy would take 25 damage.\nSuppose PersonalDifficulty is set to double your damage, and this is set to 100. Then your base damage would increase to 55 so that your new end result is 50 damage, double of 25.\nSuppose this is set to 0, then your *base* damage would be doubled to 60, so you'd deal 55 damage.\nIf this were set to 40, you'd do 40% in between: 52 damage.")]
+		public float EffectiveDamageDealtScalarPercentage
+		{
+			get
+			{
+				TryInitializeFromPlayer();
+
+				return _EffectiveDamageDealtScalarPercentage;
+			}
+
+			set
+			{
+				_EffectiveDamageDealtScalarPercentage = value;
+			}
+		}
+
+		[Range(0.0f, 100.0f)]
+		[Increment(5.0f)]
+		[DefaultValue(100.0f)]
+		[Label("Effective Damage Taken Multiplier %")]
+		[Tooltip("This controls whether your damage taken changes are to the effective damage or the base damage.\n100.0 = Change effective damage.\n0.0 = Change base damage.\nOther = Scale between the two values.\n(Default 100.0)\n\nExamples: Suppose an enemy hits you with an original base damage of 30 on Normal Mode, and you have 10 Defense. You would take 25 damage.\nSuppose PersonalDifficulty is set to double your damage taken, and this is set to 100.\nThen the effective (end result) damage would increase to 50, double of 25.\nSuppose this is set to 0, then the *base* damage would be doubled to 60, so you'd take 55 damage.\nIf this were set to 40, you'd take 40% in between: 52 damage.")]
+		public float EffectiveDamageTakenScalarPercentage
+		{
+			get
+			{
+				TryInitializeFromPlayer();
+
+				return _EffectiveDamageTakenScalarPercentage;
+			}
+
+			set
+			{
+				_EffectiveDamageTakenScalarPercentage = value;
 			}
 		}
 

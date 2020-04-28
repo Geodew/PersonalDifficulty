@@ -2,8 +2,8 @@
 
 namespace PersonalDifficulty.PacketMessages
 {
-    enum PacketMessageTypeEnum
-    {
-        PLAYER_CONFIG
-    }
+	enum PacketMessageTypeEnum
+	{
+		PLAYER_CONFIG
+	}
 }

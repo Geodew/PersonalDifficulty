@@ -1,7 +1,7 @@
-A mod for playing multiplayer with players of varying skill levels. It also works in single-player, if you want to make your solo play harder or easier.
+A mod for playing multiplayer with players of varying skill levels. It also works in single-player, if you want to make your solo play harder or easier. You could also use this mod to make the game hard again after installing too many mods that make you too powerful, or to make the game just a tad easier if a mod made it too hard.
 
-Set your own personal difficulty level that doesn't affect other players. Only your own stats, like damage dealt and damage taken, are changed.
+This mod sets your own personal difficulty level that doesn't affect other players. Only your own stats, like damage dealt and damage taken, are changed. You can also enable other side options like immunity to fall damage, water-breathing, and constant glowing.
 
-Other players must still install this mod to avoid players de-synchronizing with the server.
+Other players must still install this mod to avoid players de-synchronizing with the server. (If someone doesn't have the mod, players and enemies would likely appear to teleport around or stutter, or something's health might suddenly change. It would look like Internet lag.)
 
-To begin, open Mod Configuration (default is no difficulty change). To do that, hit Settings -> Mod Configuration when in a world. (Mod Configuration may not be present right now, but it will show up after you install this mod.)
+To begin using this mod, open Mod Configuration (default is no difficulty change). To do that, hit Settings -> Mod Configuration when in a world. (Mod Configuration may not be present right now, but it will show up after you install this mod.)

@@ -16,6 +16,7 @@ namespace PersonalDifficulty
 	{
 		private bool mLoadFinished = false;
 
+		// v0.1.0
 		public double mPlayerPowerScalar;
 		public double mPlayerDamageDealtScalar;
 		public double mPlayerDamageTakenScalar;
@@ -28,22 +29,47 @@ namespace PersonalDifficulty
 		public bool mShowDamageChangesInWeaponTooltip;
 		public bool mShowKnockbackChangesInWeaponTooltip;
 
+		// v0.2.0
+		public double mEffectiveDamageDealtScalar;
+		public double mEffectiveDamageTakenScalar;
+		public float mGlowAmount;  // This is a float to save time on conversions: since we're inputting this directly into a function, there's no benefit from it being a double, only extra processing time. Note that it's still passed around as a double elsewhere for consistency in, for example, Save().
+		public bool mDisableDrowningForSelf;
+		public bool mDisableLavaDamageOnSelf;
+		public bool mEnableGlow;
+
+		// New Feature Comment Tag: Code change goes here
+
+
 		public override TagCompound Save()
 		{
 			TagCompound data = new TagCompound();
 
 			try  // Prevent data loss or failed character save if something goes wrong in here
 			{
-				byte[] version = new byte[] { 0, 1, 0 };
+				byte[] version;
+				List<double> scalars;
+				List<bool> toggles;
+
+				// New Feature Comment Tag: Code change goes here
+				version = new byte[] { 0, 2, 0 };
 				data.Add("Version", version);
 
-				//zzz Eventually add status effect duration increase/decrease on self
-				//double[] scalars = new double[] { mPlayerPowerScalar, mPlayerDamageDealtScalar, mPlayerDamageTakenScalar, mPlayerKnockbackDealtScalar, mPlayerKnockbackTakenScalar };
-				List<double> scalars = new List<double> { mPlayerPowerScalar, mPlayerDamageDealtScalar, mPlayerDamageTakenScalar, mPlayerKnockbackDealtScalar };
+				// v0.1.0
+				scalars = new List<double> { mPlayerPowerScalar, mPlayerDamageDealtScalar, mPlayerDamageTakenScalar, mPlayerKnockbackDealtScalar };
 				data.Add("Scalars", scalars);
 
-				List<bool> toggles = new List<bool> { mDisableKnockbackOnSelf, mDisableFallDamageOnSelf, mShowDamageChangesInWeaponTooltip, mShowKnockbackChangesInWeaponTooltip };
+				toggles = new List<bool> { mDisableKnockbackOnSelf, mDisableFallDamageOnSelf, mShowDamageChangesInWeaponTooltip, mShowKnockbackChangesInWeaponTooltip };
 				data.Add("Toggles", toggles);
+
+				// v0.2.0
+				scalars = new List<double> { mEffectiveDamageDealtScalar, mEffectiveDamageTakenScalar, (double)mGlowAmount };
+				data.Add("Scalars_v0_2_0", scalars);
+
+				toggles = new List<bool> { mDisableDrowningForSelf, mDisableLavaDamageOnSelf, mEnableGlow };
+				data.Add("Toggles_v0_2_0", toggles);
+
+				// New Feature Comment Tag: Code change goes here
+				//zzz Eventually add status effect duration increase/decrease on self
 			}
 			catch
 			{
@@ -68,22 +94,58 @@ namespace PersonalDifficulty
 
 				byte[] version = tag.GetByteArray("Version");
 
-				if ((version.Length == 3) && (version[0] == 0) && (version[1] == 1) && (version[2] == 0))
+				if ((version != null) && (version.Length == 3) && (version[0] == 0) && (version[1] == 1) && (version[2] == 0))
 				{
 					Load_v0_1_0(tag);
-
-					ErrorCheckLoad();
 				}
+				else if ((version != null) && (version.Length == 3) && (version[0] == 0) && (version[1] == 2) && (version[2] == 0))
+				{
+					Load_v0_2_0(tag);
+				}
+				// New Feature Comment Tag: Code change goes here
 				else
 				{
 					//zzz print warning
 				}
+
+				ErrorCheckLoad();  // If we didn't actually load anything, this should still be harmless
 			}
 			catch
 			{
 			}
 
 			mLoadFinished = true;
+		}
+
+		public void Load_v0_2_0(TagCompound tag)
+		{
+			int i;
+
+			Load_v0_1_0(tag);
+
+			try
+			{
+				List<double> scalars = (List<double>)tag.GetList<double>("Scalars_v0_2_0");
+				i = 0;
+				mEffectiveDamageDealtScalar = scalars[i++];
+				mEffectiveDamageTakenScalar = scalars[i++];
+				mGlowAmount = (float)scalars[i++];
+			}
+			catch
+			{
+			}
+
+			try
+			{
+				List<bool> toggles = (List<bool>)tag.GetList<bool>("Toggles_v0_2_0");
+				i = 0;
+				mDisableDrowningForSelf = toggles[i++];
+				mDisableLavaDamageOnSelf = toggles[i++];
+				mEnableGlow = toggles[i++];
+			}
+			catch
+			{
+			}
 		}
 
 		public void Load_v0_1_0(TagCompound tag)
@@ -99,7 +161,6 @@ namespace PersonalDifficulty
 				mPlayerDamageTakenScalar = scalars[i++];
 				mPlayerKnockbackDealtScalar = scalars[i++];
 				//mPlayerKnockbackTakenScalar = scalars[i++];  // Apparently this can't be done
-				//zzz Eventually add status effect duration increase/decrease on self
 			}
 			catch
 			{
@@ -119,13 +180,14 @@ namespace PersonalDifficulty
 			}
 		}
 
-		// For compatibility with old versions of tModLoader (note different input)
+		// For compatibility with old versions of tModLoader? (note different input)
 		public override void LoadLegacy(BinaryReader reader)
 		{
 			try  // Prevent data loss or failed character load if something goes wrong in here
 			{
 				UpdatePlayerFromConfigLoad();  // Set defaults in case loading throws an exception
 
+				// v0.1.0
 				if (reader.PeekChar() != -1)
 				{
 					mPlayerPowerScalar = reader.ReadDouble();
@@ -139,13 +201,27 @@ namespace PersonalDifficulty
 					mDisableFallDamageOnSelf = reader.ReadBoolean();
 					mShowDamageChangesInWeaponTooltip = reader.ReadBoolean();
 					mShowKnockbackChangesInWeaponTooltip = reader.ReadBoolean();
-
-					ErrorCheckLoad();
 				}
+
+				// v0.2.0
+				if (reader.PeekChar() != -1)
+				{
+					mEffectiveDamageDealtScalar = reader.ReadDouble();
+					mEffectiveDamageTakenScalar = reader.ReadDouble();
+					mGlowAmount = (float)reader.ReadDouble();
+
+					mDisableDrowningForSelf = reader.ReadBoolean();
+					mDisableLavaDamageOnSelf = reader.ReadBoolean();
+					mEnableGlow = reader.ReadBoolean();
+				}
+
+				// New Feature Comment Tag: Code change goes here
 			}
 			catch
 			{
 			}
+
+			ErrorCheckLoad();
 
 			mLoadFinished = true;
 		}
@@ -159,17 +235,28 @@ namespace PersonalDifficulty
 
 		public void UpdateConfigFromPlayerLoad(PDiffConfigLocal config)
 		{
+			// v0.1.0
 			config.PlayerPowerScalarPercentage = GetPlayerPowerScalarPercentage();
 			config.PlayerDamageDealtScalarPercentage = GetPlayerDamageDealtScalarPercentage();
 			config.PlayerDamageTakenScalarPercentage = GetPlayerDamageTakenScalarPercentage();
 			config.PlayerKnockbackDealtScalarPercentage = GetPlayerKnockbackDealtScalarPercentage();
 			//config.PlayerKnockbackTakenScalarPercentage = GetPlayerKnockbackTakenScalarPercentage();  // Apparently this can't be done
-			//zzz Eventually add status effect duration increase/decrease on self
 
 			config.DisableKnockbackOnSelf = mDisableKnockbackOnSelf;
 			config.DisableFallDamageOnSelf = mDisableFallDamageOnSelf;
 			config.ShowDamageChangesInWeaponTooltip = mShowDamageChangesInWeaponTooltip;
 			config.ShowKnockbackChangesInWeaponTooltip = mShowKnockbackChangesInWeaponTooltip;
+
+			// v0.2.0
+			config.EffectiveDamageDealtScalarPercentage = GetEffectiveDamageDealtScalarPercentage();
+			config.EffectiveDamageTakenScalarPercentage = GetEffectiveDamageTakenScalarPercentage();
+			config.GlowAmountPercentage = GetGlowAmountPercentage();
+			config.DisableDrowningForSelf = mDisableDrowningForSelf;
+			config.DisableLavaDamageOnSelf = mDisableLavaDamageOnSelf;
+			config.EnableGlow = mEnableGlow;
+
+			// New Feature Comment Tag: Code change goes here
+			//zzz Eventually add status effect duration increase/decrease on self
 		}
 
 		private void UpdatePlayerFromConfigLoad()
@@ -179,6 +266,7 @@ namespace PersonalDifficulty
 
 		public void UpdatePlayerFromConfigLoad(PDiffConfigLocal config)
 		{
+			// v0.1.0
 			SetPlayerPowerScalarPercentage(config.PlayerPowerScalarPercentage);
 			SetPlayerDamageDealtScalarPercentage(config.PlayerDamageDealtScalarPercentage);
 			SetPlayerDamageTakenScalarPercentage(config.PlayerDamageTakenScalarPercentage);
@@ -189,6 +277,16 @@ namespace PersonalDifficulty
 			mDisableFallDamageOnSelf = config.DisableFallDamageOnSelf;
 			mShowDamageChangesInWeaponTooltip = config.ShowDamageChangesInWeaponTooltip;
 			mShowKnockbackChangesInWeaponTooltip = config.ShowKnockbackChangesInWeaponTooltip;
+
+			// v0.2.0
+			SetEffectiveDamageDealtScalarPercentage(config.EffectiveDamageDealtScalarPercentage);
+			SetEffectiveDamageTakenScalarPercentage(config.EffectiveDamageTakenScalarPercentage);
+			SetGlowAmountPercentage(config.GlowAmountPercentage);
+			mDisableDrowningForSelf = config.DisableDrowningForSelf;
+			mDisableLavaDamageOnSelf = config.DisableLavaDamageOnSelf;
+			mEnableGlow = config.EnableGlow;
+
+			// New Feature Comment Tag: Code change goes here
 
 			if (mLoadFinished)
 			{
@@ -215,6 +313,11 @@ namespace PersonalDifficulty
 				//mPlayerKnockbackDealtScalar = Math.Max(0.0, mPlayerKnockbackDealtScalar);
 				//mPlayerKnockbackTakenScalar = Math.Max(0.0, mPlayerKnockbackTakenScalar);  // Apparently this can't be done
 				//zzz Eventually add status effect duration increase/decrease on self
+
+				// v0.2.0
+				mGlowAmount = Math.Max(0.0f, mGlowAmount);
+
+				// New Feature Comment Tag: Code change goes here
 			}
 			catch
 			{
@@ -254,11 +357,20 @@ namespace PersonalDifficulty
 			base.SyncPlayer(toWho, fromWho, newPlayer);
 		}
 
+		// New Feature Comment Tag: Code change goes here (Add actual functionality in appropriate function)
+
 		public override void ResetEffects()
 		{
 			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			// v0.1.0
 			player.noKnockback |= mDisableKnockbackOnSelf;
 			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			// v0.2.0
+			player.gills |= mDisableDrowningForSelf;
+			player.lavaImmune |= mDisableLavaDamageOnSelf;                 // Not hurt by lava
+			player.fireWalk |= mDisableLavaDamageOnSelf;                   // Prevents damage from Hellstone and Meteorite blocks
+			player.buffImmune[BuffID.OnFire] |= mDisableLavaDamageOnSelf;  // lavaImmune doesn't cover the ticking damage debuff
 
 			base.ResetEffects();
 		}
@@ -266,8 +378,15 @@ namespace PersonalDifficulty
 		public override void PreUpdate()
 		{
 			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			// v0.1.0
 			player.noKnockback |= mDisableKnockbackOnSelf;
 			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			// v0.2.0
+			player.gills |= mDisableDrowningForSelf;
+			player.lavaImmune |= mDisableLavaDamageOnSelf;                 // Not hurt by lava
+			player.fireWalk |= mDisableLavaDamageOnSelf;                   // Prevents damage from Hellstone and Meteorite blocks
+			player.buffImmune[BuffID.OnFire] |= mDisableLavaDamageOnSelf;  // lavaImmune doesn't cover the ticking damage debuff
 
 			base.PreUpdate();
 		}
@@ -276,8 +395,15 @@ namespace PersonalDifficulty
 		public override void PreUpdateBuffs()
 		{
 			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			// v0.1.0
 			player.noKnockback |= mDisableKnockbackOnSelf;
 			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			// v0.2.0
+			player.gills |= mDisableDrowningForSelf;
+			player.lavaImmune |= mDisableLavaDamageOnSelf;                 // Not hurt by lava
+			player.fireWalk |= mDisableLavaDamageOnSelf;                   // Prevents damage from Hellstone and Meteorite blocks
+			player.buffImmune[BuffID.OnFire] |= mDisableLavaDamageOnSelf;  // lavaImmune doesn't cover the ticking damage debuff
 
 			base.PreUpdateBuffs();
 		}
@@ -285,8 +411,21 @@ namespace PersonalDifficulty
 		public override void PostUpdateEquips()
 		{
 			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			// v0.1.0
 			player.noKnockback |= mDisableKnockbackOnSelf;
 			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			// v0.2.0
+			player.gills |= mDisableDrowningForSelf;
+			player.lavaImmune |= mDisableLavaDamageOnSelf;                 // Not hurt by lava
+			player.fireWalk |= mDisableLavaDamageOnSelf;                   // Prevents damage from Hellstone and Meteorite blocks
+			player.buffImmune[BuffID.OnFire] |= mDisableLavaDamageOnSelf;  // lavaImmune doesn't cover the ticking damage debuff
+			if (mEnableGlow)
+			{
+				// Note: We only want the Glow in one spot so we only spawn one "light source."
+				// That's fine, though; it's unlikely that another mod will override us spawning light, since it's not a Player class property/variable.
+				Lighting.AddLight(player.position, mGlowAmount, mGlowAmount, mGlowAmount);
+			}
 
 			base.PostUpdateEquips();
 		}
@@ -294,8 +433,15 @@ namespace PersonalDifficulty
 		public override void PostUpdateRunSpeeds()
 		{
 			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			// v0.1.0
 			player.noKnockback |= mDisableKnockbackOnSelf;
 			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			// v0.2.0
+			player.gills |= mDisableDrowningForSelf;
+			player.lavaImmune |= mDisableLavaDamageOnSelf;                 // Not hurt by lava
+			player.fireWalk |= mDisableLavaDamageOnSelf;                   // Prevents damage from Hellstone and Meteorite blocks
+			player.buffImmune[BuffID.OnFire] |= mDisableLavaDamageOnSelf;  // lavaImmune doesn't cover the ticking damage debuff
 
 			base.PostUpdateRunSpeeds();
 		}
@@ -303,8 +449,15 @@ namespace PersonalDifficulty
 		public override void PostUpdate()
 		{
 			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			// v0.1.0
 			player.noKnockback |= mDisableKnockbackOnSelf;
 			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			// v0.2.0
+			player.gills |= mDisableDrowningForSelf;
+			player.lavaImmune |= mDisableLavaDamageOnSelf;                 // Not hurt by lava
+			player.fireWalk |= mDisableLavaDamageOnSelf;                   // Prevents damage from Hellstone and Meteorite blocks
+			player.buffImmune[BuffID.OnFire] |= mDisableLavaDamageOnSelf;  // lavaImmune doesn't cover the ticking damage debuff
 
 			base.PostUpdate();
 		}
@@ -312,8 +465,15 @@ namespace PersonalDifficulty
 		public override bool PreHurt(bool pvp, bool quiet, ref int damage, ref int hitDirection, ref bool crit, ref bool customDamage, ref bool playSound, ref bool genGore, ref PlayerDeathReason damageSource)
 		{
 			// We're going to set these in a lot of functions because we want these settings to override other mods forcing them to false, if we can
+			// v0.1.0
 			player.noKnockback |= mDisableKnockbackOnSelf;
 			player.noFallDmg |= mDisableFallDamageOnSelf;
+
+			// v0.2.0
+			player.gills |= mDisableDrowningForSelf;
+			player.lavaImmune |= mDisableLavaDamageOnSelf;                 // Not hurt by lava
+			player.fireWalk |= mDisableLavaDamageOnSelf;                   // Prevents damage from Hellstone and Meteorite blocks
+			player.buffImmune[BuffID.OnFire] |= mDisableLavaDamageOnSelf;  // lavaImmune doesn't cover the ticking damage debuff
 
 			AdjustDamageTaken(ref damage);
 
@@ -324,10 +484,7 @@ namespace PersonalDifficulty
 
 		public override void ModifyHitNPCWithProj(Projectile proj, NPC target, ref int damage, ref float knockback, ref bool crit, ref int hitDirection)
 		{
-			if (!mShowDamageChangesInWeaponTooltip)
-			{
-				AdjustDamageDealt(ref damage);
-			}
+			AdjustDamageDealt(ref damage, target);
 
 			if (!mShowKnockbackChangesInWeaponTooltip)
 			{
@@ -339,10 +496,7 @@ namespace PersonalDifficulty
 
 		public override void ModifyHitNPC(Item item, NPC target, ref int damage, ref float knockback, ref bool crit)
 		{
-			if (!mShowDamageChangesInWeaponTooltip)
-			{
-				AdjustDamageDealt(ref damage);
-			}
+			AdjustDamageDealt(ref damage, target);
 
 			if (!mShowKnockbackChangesInWeaponTooltip)
 			{
@@ -354,10 +508,7 @@ namespace PersonalDifficulty
 
 		public override void ModifyHitPvp(Item item, Player target, ref int damage, ref bool crit)
 		{
-			if (!mShowDamageChangesInWeaponTooltip)
-			{
-				AdjustDamageDealt(ref damage);
-			}
+			AdjustDamageDealt(ref damage, target);
 
 			if (!mShowKnockbackChangesInWeaponTooltip)
 			{
@@ -370,10 +521,7 @@ namespace PersonalDifficulty
 
 		public override void ModifyHitPvpWithProj(Projectile proj, Player target, ref int damage, ref bool crit)
 		{
-			if (!mShowDamageChangesInWeaponTooltip)
-			{
-				AdjustDamageDealt(ref damage);
-			}
+			AdjustDamageDealt(ref damage, target);
 
 			if (!mShowKnockbackChangesInWeaponTooltip)
 			{
@@ -388,7 +536,8 @@ namespace PersonalDifficulty
 		{
 			if (mShowDamageChangesInWeaponTooltip)
 			{
-				AdjustDamageDealtMult(ref mult);
+				// Target's Defense and effective damage calculations is accounted for later
+				AdjustBaseDamageDealtMult(ref mult);
 			}
 
 			base.ModifyWeaponDamage(item, ref add, ref mult, ref flat);
@@ -404,24 +553,55 @@ namespace PersonalDifficulty
 			base.GetWeaponKnockback(item, ref knockback);
 		}
 
-		private int Round(double x)
+		private void AdjustDamageDealt(ref int damage, NPC target)
 		{
-			return (int)Math.Round(x);
-		}
+			double mult = 1.0;
+			double newBaseDamage;
 
-		private void AdjustDamageDealt(ref int damage)
-		{
-			if (mPlayerPowerScalar >= 0.0)
+			AdjustBaseDamageDealtMult(ref mult);
+
+			if (mShowDamageChangesInWeaponTooltip)
 			{
-				damage = Round((double)damage * (1.0 + (mPlayerPowerScalar * mPlayerDamageDealtScalar)));
+				newBaseDamage = damage;
 			}
 			else
 			{
-				damage = Round((double)damage / (1.0 - (mPlayerPowerScalar * mPlayerDamageDealtScalar)));
+				newBaseDamage = ((double)damage * mult);
+			}
+
+			damage = Round(newBaseDamage - GetDefenseDamageReducedEnemy(damage, target) * (mEffectiveDamageDealtScalar * (mult - 1.0)));
+
+			if (damage < 0)
+			{
+				damage = 0;
 			}
 		}
 
-		private void AdjustDamageDealtMult(ref float mult)
+		private void AdjustDamageDealt(ref int damage, Player target)
+		{
+			double mult = 1.0;
+			double newBaseDamage;
+
+			AdjustBaseDamageDealtMult(ref mult);
+
+			if (mShowDamageChangesInWeaponTooltip)
+			{
+				newBaseDamage = damage;
+			}
+			else
+			{
+				newBaseDamage = ((double)damage * mult);
+			}
+
+			damage = Round(newBaseDamage - GetDefenseDamageReducedEnemy(damage, target) * (mEffectiveDamageDealtScalar * (mult - 1.0)));
+
+			if (damage < 0)
+			{
+				damage = 0;
+			}
+		}
+
+		private void AdjustBaseDamageDealtMult(ref float mult)
 		{
 			if (mPlayerPowerScalar >= 0.0)
 			{
@@ -430,6 +610,28 @@ namespace PersonalDifficulty
 			else
 			{
 				mult = (float)((double)mult / (1.0 - (mPlayerPowerScalar * mPlayerDamageDealtScalar)));
+			}
+
+			if (mult < 0.0f)
+			{
+				mult = 0.0f;
+			}
+		}
+
+		private void AdjustBaseDamageDealtMult(ref double mult)
+		{
+			if (mPlayerPowerScalar >= 0.0)
+			{
+				mult = (mult * (1.0 + (mPlayerPowerScalar * mPlayerDamageDealtScalar)));
+			}
+			else
+			{
+				mult = (mult / (1.0 - (mPlayerPowerScalar * mPlayerDamageDealtScalar)));
+			}
+
+			if (mult < 0.0)
+			{
+				mult = 0.0;
 			}
 		}
 
@@ -447,13 +649,22 @@ namespace PersonalDifficulty
 
 		private void AdjustDamageTaken(ref int damage)
 		{
+			double mult;
+
 			if (mPlayerPowerScalar >= 0.0)
 			{
-				damage = Round((double)damage / (1.0 + (mPlayerPowerScalar * mPlayerDamageTakenScalar)));
+				mult = 1.0 / (1.0 + (mPlayerPowerScalar * mPlayerDamageTakenScalar));
 			}
 			else
 			{
-				damage = Round((double)damage * (1.0 - (mPlayerPowerScalar * mPlayerDamageTakenScalar)));
+				mult = (1.0 - (mPlayerPowerScalar * mPlayerDamageTakenScalar));
+			}
+
+			damage = Round(((double)damage * mult) - GetDefenseDamageReducedSelf(damage) * (mEffectiveDamageTakenScalar * (mult - 1.0)));
+
+			if (damage < 0)
+			{
+				damage = 0;
 			}
 		}
 
@@ -470,6 +681,81 @@ namespace PersonalDifficulty
 		//	}
 		//}
 		//  ===== Apparently this can't be done =====
+
+		// Equal to: Original Base Damage - Original Effective Damage
+		private double GetDefenseDamageReducedEnemy(int damage, NPC target)
+		{
+			//double defenseMultiplier = (Main.expertMode ? 0.75 : 0.5);
+			double defenseMultiplier = 0.5;  // NPCs' damage reduction from Defense doesn't change in Expert Mode (according to Wiki)
+			int baseDamage;  // Original damage value
+
+			if (mShowDamageChangesInWeaponTooltip)
+			{
+				double damageMultiplier = 1.0;
+
+				AdjustBaseDamageDealtMult(ref damageMultiplier);
+
+				// Not quite a perfect inversion, but we'll manage
+				baseDamage = Round((double)damage / damageMultiplier);
+			}
+			else
+			{
+				baseDamage = damage;
+			}
+
+			// Wiki says damage reduction from Defense is rounded up:                   https://terraria.gamepedia.com/Defense#Mechanics
+			// Wiki says damage reduction/increase multiplier is applied after Defense: https://terraria.gamepedia.com/Defense#Damage_reduction_boosts
+			// This might be negative if the target has a large damage taken multiplier (damage taken increase). That's expected.
+			//return Math.Round(Math.Ceiling(target.defense * defenseMultiplier) * (double)target.takenDamageMultiplier + (double)baseDamage * (1.0 - (double)target.takenDamageMultiplier));
+			return Math.Round((double)baseDamage - (((double)baseDamage - Math.Ceiling(target.defense * defenseMultiplier)) * (double)target.takenDamageMultiplier));
+		}
+
+		// Equal to: Base Damage - Effective Damage
+		private double GetDefenseDamageReducedEnemy(int damage, Player target)
+		{
+			double defenseMultiplier = (Main.expertMode ? 0.75 : 0.5);
+			int baseDamage;  // Original damage value
+			double endurance = (target.endurance > -1.0f) ? (double)target.endurance : -0.99;  // If another mod breaks the player's endurance such that they should take infinite damage, then with this, we won't crash. It'll probably crash somewhere else, but at least people might not report the bug to me...?
+
+			if (mShowDamageChangesInWeaponTooltip)
+			{
+				double damageMultiplier = 1.0;
+
+				AdjustBaseDamageDealtMult(ref damageMultiplier);
+
+				// Not quite a perfect inversion, but we'll manage
+				baseDamage = Round((double)damage / damageMultiplier);
+			}
+			else
+			{
+				baseDamage = damage;
+			}
+
+			// Wiki says damage reduction from Defense is rounded up:                   https://terraria.gamepedia.com/Defense#Mechanics
+			// Wiki says damage reduction/increase multiplier is applied after Defense: https://terraria.gamepedia.com/Defense#Damage_reduction_boosts
+			// This might be negative if the target has a large damage taken multiplier (damage taken increase). That's expected.
+			//return Math.Round(Math.Ceiling(target.defense * defenseMultiplier) * (double)target.takenDamageMultiplier + (double)damage * (1.0 - (double)target.takenDamageMultiplier));
+			return Math.Round((double)baseDamage - (((double)baseDamage - Math.Ceiling(target.statDefense * defenseMultiplier)) / (1.0 + endurance)));
+		}
+
+		// Equal to: Base Damage - Effective Damage
+		private double GetDefenseDamageReducedSelf(int damage)
+		{
+			double defenseMultiplier = (Main.expertMode ? 0.75 : 0.5);
+			int baseDamage = damage;  // Original damage value: This is provided by the other NPC/Player object, so this player's tooltip options don't matter
+			double endurance = (player.endurance > -1.0f) ? (double)player.endurance : -0.99;  // If another mod breaks the player's endurance such that they should take infinite damage, then with this, we won't crash. It'll probably crash somewhere else, but at least people might not report the bug to me...?
+
+			// Wiki says damage reduction from Defense is rounded up:                   https://terraria.gamepedia.com/Defense#Mechanics
+			// Wiki says damage reduction/increase multiplier is applied after Defense: https://terraria.gamepedia.com/Defense#Damage_reduction_boosts
+			// This might be negative if the target has a large damage taken multiplier (damage taken increase). That's expected.
+			//return Math.Round(Math.Ceiling(target.defense * defenseMultiplier) * (double)target.takenDamageMultiplier + (double)damage * (1.0 - (double)target.takenDamageMultiplier));
+			return Math.Round((double)baseDamage - (((double)baseDamage - Math.Ceiling(player.statDefense * defenseMultiplier)) / (1.0 + endurance)));
+		}
+
+		private int Round(double x)
+		{
+			return (int)Math.Round(x);
+		}
 
 		public bool GetLoadFinished()
 		{
@@ -509,24 +795,41 @@ namespace PersonalDifficulty
 		//	return (float)(... * 100.0);
 		//}
 
-		public void SetPlayerPowerScalarPercentage(float PlayerPowerScalarPercentageIn)
+		public float GetEffectiveDamageDealtScalarPercentage()
 		{
-			mPlayerPowerScalar = ((double)PlayerPowerScalarPercentageIn / 100.0);
+			return (float)(mEffectiveDamageDealtScalar * 100.0);
 		}
 
-		public void SetPlayerDamageDealtScalarPercentage(float PlayerDamageDealtScalarPercentageIn)
+		public float GetEffectiveDamageTakenScalarPercentage()
 		{
-			mPlayerDamageDealtScalar = ((double)PlayerDamageDealtScalarPercentageIn / 100.0);
+			return (float)(mEffectiveDamageTakenScalar * 100.0);
 		}
 
-		public void SetPlayerDamageTakenScalarPercentage(float PlayerDamageTakenScalarPercentageIn)
+		public float GetGlowAmountPercentage()
 		{
-			mPlayerDamageTakenScalar = ((double)PlayerDamageTakenScalarPercentageIn / 100.0);
+			return (mGlowAmount * 100.0f);
 		}
 
-		public void SetPlayerKnockbackDealtScalarPercentage(float PlayerKnockbackDealtScalarPercentageIn)
+		// New Feature Comment Tag: Code change goes here (floats only)
+
+		public void SetPlayerPowerScalarPercentage(float playerPowerScalarPercentage)
 		{
-			mPlayerKnockbackDealtScalar = ((double)PlayerKnockbackDealtScalarPercentageIn / 100.0);
+			mPlayerPowerScalar = ((double)playerPowerScalarPercentage / 100.0);
+		}
+
+		public void SetPlayerDamageDealtScalarPercentage(float playerDamageDealtScalarPercentage)
+		{
+			mPlayerDamageDealtScalar = ((double)playerDamageDealtScalarPercentage / 100.0);
+		}
+
+		public void SetPlayerDamageTakenScalarPercentage(float playerDamageTakenScalarPercentage)
+		{
+			mPlayerDamageTakenScalar = ((double)playerDamageTakenScalarPercentage / 100.0);
+		}
+
+		public void SetPlayerKnockbackDealtScalarPercentage(float playerKnockbackDealtScalarPercentage)
+		{
+			mPlayerKnockbackDealtScalar = ((double)playerKnockbackDealtScalarPercentage / 100.0);
 		}
 
 		//  ===== Apparently this can't be done =====
@@ -541,5 +844,22 @@ namespace PersonalDifficulty
 		//{
 		//	... = ((double)... / 100.0);
 		//}
+
+		public void SetEffectiveDamageDealtScalarPercentage(float effectiveDamageDealtScalarPercentage)
+		{
+			mEffectiveDamageDealtScalar = ((double)effectiveDamageDealtScalarPercentage / 100.0);
+		}
+
+		public void SetEffectiveDamageTakenScalarPercentage(float effectiveDamageTakenScalarPercentage)
+		{
+			mEffectiveDamageTakenScalar = ((double)effectiveDamageTakenScalarPercentage / 100.0);
+		}
+
+		public void SetGlowAmountPercentage(float glowAmountPercentage)
+		{
+			mGlowAmount = (glowAmountPercentage / 100.0f);
+		}
+
+		// New Feature Comment Tag: Code change goes here (floats only)
 	}
 }
